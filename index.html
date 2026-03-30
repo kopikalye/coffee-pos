@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Pro Coffee POS</title>
+<title>Coffee Shop POS Pro</title>
 
 <style>
   body { font-family: Arial; margin:0; background:#f4f4f4; }
@@ -42,6 +42,13 @@
     margin:5px 0;
   }
 
+  .small-btn {
+    width:auto;
+    padding:3px 6px;
+    font-size:12px;
+    background:red;
+  }
+
   .total, .change {
     font-weight:bold;
     margin-top:10px;
@@ -59,7 +66,7 @@
 <body>
 
 <header>
-  <h1>☕ Coffee Shop POS (Pro)</h1>
+  <h1>☕ Coffee Shop POS (Pro Version)</h1>
 </header>
 
 <div class="container">
@@ -84,6 +91,7 @@
     <div class="total">Total: ₱<span id="total">0</span></div>
 
     <input id="cash" type="number" placeholder="Enter Cash">
+
     <button onclick="calculateChange()">Calculate Change</button>
 
     <div class="change">Change: ₱<span id="change">0</span></div>
@@ -94,7 +102,7 @@
   <!-- SALES -->
   <div class="box" style="width:100%;">
     <h2>📊 Daily Sales</h2>
-    <button onclick="renderSales()">Refresh</button>
+    <button onclick="renderSales()">Refresh Sales</button>
     <div id="sales"></div>
   </div>
 
@@ -114,12 +122,20 @@ function saveMenu() {
 }
 
 function addMenuItem() {
-  let name = document.getElementById("itemName").value;
+  let name = document.getElementById("itemName").value.trim();
   let price = parseFloat(document.getElementById("itemPrice").value);
 
-  if (!name || !price) return alert("Fill all fields");
+  if (!name) return alert("Enter item name");
+  if (isNaN(price) || price <= 0) return alert("Enter valid price");
 
   menu.push({ name, price });
+  saveMenu();
+  renderMenu();
+}
+
+function deleteMenuItem(index) {
+  if (!confirm("Delete this item?")) return;
+  menu.splice(index, 1);
   saveMenu();
   renderMenu();
 }
@@ -132,7 +148,10 @@ function renderMenu() {
     div.innerHTML += `
       <div class="item">
         <span>${item.name} - ₱${item.price}</span>
-        <button onclick="addToCart(${i})">Add</button>
+        <div>
+          <button onclick="addToCart(${i})">Add</button>
+          <button class="small-btn" onclick="deleteMenuItem(${i})">X</button>
+        </div>
       </div>
     `;
   });
@@ -143,36 +162,49 @@ function addToCart(i) {
   renderCart();
 }
 
+function removeFromCart(i) {
+  cart.splice(i, 1);
+  renderCart();
+}
+
 function renderCart() {
   let div = document.getElementById("cart");
   div.innerHTML = "";
 
   let total = 0;
 
-  cart.forEach(item => {
+  cart.forEach((item, i) => {
     total += item.price;
 
     div.innerHTML += `
       <div class="cart-item">
         <span>${item.name}</span>
-        <span>₱${item.price}</span>
+        <div>
+          <span>₱${item.price}</span>
+          <button class="small-btn" onclick="removeFromCart(${i})">X</button>
+        </div>
       </div>
     `;
   });
 
-  document.getElementById("total").innerText = total;
+  document.getElementById("total").innerText = total.toFixed(2);
 }
 
 function calculateChange() {
   let total = cart.reduce((s, i) => s + i.price, 0);
   let cash = parseFloat(document.getElementById("cash").value);
 
-  if (isNaN(cash) || cash < total) {
-    alert("Insufficient cash!");
+  if (isNaN(cash)) {
+    alert("Enter cash");
     return;
   }
 
-  document.getElementById("change").innerText = cash - total;
+  if (cash < total) {
+    alert("Insufficient cash");
+    return;
+  }
+
+  document.getElementById("change").innerText = (cash - total).toFixed(2);
 }
 
 function checkout() {
@@ -181,6 +213,7 @@ function checkout() {
   let total = cart.reduce((s, i) => s + i.price, 0);
   let cash = parseFloat(document.getElementById("cash").value);
 
+  if (isNaN(cash)) return alert("Enter cash");
   if (cash < total) return alert("Not enough cash");
 
   let sales = JSON.parse(localStorage.getItem("sales")) || [];
@@ -194,9 +227,12 @@ function checkout() {
 
   localStorage.setItem("sales", JSON.stringify(sales));
 
-  alert("Order Complete!");
+  alert("Order complete!");
 
   cart = [];
+  document.getElementById("cash").value = "";
+  document.getElementById("change").innerText = "0";
+
   renderCart();
   renderSales();
 }
@@ -211,6 +247,7 @@ function renderSales() {
   }
 
   let grouped = {};
+  let grandTotal = 0;
 
   sales.forEach(s => {
     let date = new Date(s.date).toLocaleDateString();
@@ -222,8 +259,6 @@ function renderSales() {
 
   div.innerHTML = "";
 
-  let grandTotal = 0;
-
   for (let date in grouped) {
     let dailyTotal = 0;
 
@@ -233,246 +268,7 @@ function renderSales() {
       dailyTotal += s.total;
       grandTotal += s.total;
 
-      html += `
-        <p>🕒 ${new Date(s.date).t<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>Pro Coffee POS</title>
-
-<style>
-  body { font-family: Arial; margin:0; background:#f4f4f4; }
-  header { background:#6f4e37; color:white; text-align:center; padding:15px; }
-
-  .container { display:flex; gap:20px; padding:20px; flex-wrap:wrap; }
-
-  .box {
-    background:white;
-    padding:15px;
-    border-radius:10px;
-    width:48%;
-    box-shadow:0 2px 5px rgba(0,0,0,0.1);
-  }
-
-  input {
-    width:100%;
-    padding:8px;
-    margin:5px 0;
-  }
-
-  button {
-    width:100%;
-    padding:8px;
-    border:none;
-    background:#6f4e37;
-    color:white;
-    cursor:pointer;
-    border-radius:5px;
-  }
-
-  button:hover { background:#4e342e; }
-
-  .item, .cart-item {
-    display:flex;
-    justify-content:space-between;
-    margin:5px 0;
-  }
-
-  .total, .change {
-    font-weight:bold;
-    margin-top:10px;
-  }
-
-  .sales-day {
-    margin-bottom:15px;
-    padding:10px;
-    border:1px solid #ddd;
-    border-radius:8px;
-  }
-</style>
-</head>
-
-<body>
-
-<header>
-  <h1>☕ Coffee Shop POS (Pro)</h1>
-</header>
-
-<div class="container">
-
-  <!-- MENU -->
-  <div class="box">
-    <h2>Menu</h2>
-
-    <input id="itemName" placeholder="Item Name">
-    <input id="itemPrice" type="number" placeholder="Price">
-    <button onclick="addMenuItem()">Add Item</button>
-
-    <hr>
-    <div id="menu"></div>
-  </div>
-
-  <!-- CART -->
-  <div class="box">
-    <h2>Cart</h2>
-    <div id="cart"></div>
-
-    <div class="total">Total: ₱<span id="total">0</span></div>
-
-    <input id="cash" type="number" placeholder="Enter Cash">
-    <button onclick="calculateChange()">Calculate Change</button>
-
-    <div class="change">Change: ₱<span id="change">0</span></div>
-
-    <button onclick="checkout()">Checkout</button>
-  </div>
-
-  <!-- SALES -->
-  <div class="box" style="width:100%;">
-    <h2>📊 Daily Sales</h2>
-    <button onclick="renderSales()">Refresh</button>
-    <div id="sales"></div>
-  </div>
-
-</div>
-
-<script>
-
-let menu = JSON.parse(localStorage.getItem("menu")) || [
-  { name: "Espresso", price: 80 },
-  { name: "Latte", price: 120 }
-];
-
-let cart = [];
-
-function saveMenu() {
-  localStorage.setItem("menu", JSON.stringify(menu));
-}
-
-function addMenuItem() {
-  let name = document.getElementById("itemName").value;
-  let price = parseFloat(document.getElementById("itemPrice").value);
-
-  if (!name || !price) return alert("Fill all fields");
-
-  menu.push({ name, price });
-  saveMenu();
-  renderMenu();
-}
-
-function renderMenu() {
-  let div = document.getElementById("menu");
-  div.innerHTML = "";
-
-  menu.forEach((item, i) => {
-    div.innerHTML += `
-      <div class="item">
-        <span>${item.name} - ₱${item.price}</span>
-        <button onclick="addToCart(${i})">Add</button>
-      </div>
-    `;
-  });
-}
-
-function addToCart(i) {
-  cart.push(menu[i]);
-  renderCart();
-}
-
-function renderCart() {
-  let div = document.getElementById("cart");
-  div.innerHTML = "";
-
-  let total = 0;
-
-  cart.forEach(item => {
-    total += item.price;
-
-    div.innerHTML += `
-      <div class="cart-item">
-        <span>${item.name}</span>
-        <span>₱${item.price}</span>
-      </div>
-    `;
-  });
-
-  document.getElementById("total").innerText = total;
-}
-
-function calculateChange() {
-  let total = cart.reduce((s, i) => s + i.price, 0);
-  let cash = parseFloat(document.getElementById("cash").value);
-
-  if (isNaN(cash) || cash < total) {
-    alert("Insufficient cash!");
-    return;
-  }
-
-  document.getElementById("change").innerText = cash - total;
-}
-
-function checkout() {
-  if (cart.length === 0) return alert("Cart is empty");
-
-  let total = cart.reduce((s, i) => s + i.price, 0);
-  let cash = parseFloat(document.getElementById("cash").value);
-
-  if (cash < total) return alert("Not enough cash");
-
-  let sales = JSON.parse(localStorage.getItem("sales")) || [];
-
-  sales.push({
-    date: new Date().toISOString(),
-    total: total,
-    cash: cash,
-    change: cash - total
-  });
-
-  localStorage.setItem("sales", JSON.stringify(sales));
-
-  alert("Order Complete!");
-
-  cart = [];
-  renderCart();
-  renderSales();
-}
-
-function renderSales() {
-  let sales = JSON.parse(localStorage.getItem("sales")) || [];
-  let div = document.getElementById("sales");
-
-  if (sales.length === 0) {
-    div.innerHTML = "<p>No sales yet</p>";
-    return;
-  }
-
-  let grouped = {};
-
-  sales.forEach(s => {
-    let date = new Date(s.date).toLocaleDateString();
-
-    if (!grouped[date]) grouped[date] = [];
-
-    grouped[date].push(s);
-  });
-
-  div.innerHTML = "";
-
-  let grandTotal = 0;
-
-  for (let date in grouped) {
-    let dailyTotal = 0;
-
-    let html = `<div class="sales-day"><h3>${date}</h3>`;
-
-    grouped[date].forEach(s => {
-      dailyTotal += s.total;
-      grandTotal += s.total;
-
-      html += `
-        <p>🕒 ${new Date(s.date).toLocaleTimeString()} |
-        ₱${s.total}</p>
-      `;
+      html += `<p>₱${s.total} | Cash: ₱${s.cash} | Change: ₱${s.change}</p>`;
     });
 
     html += `<strong>Daily Total: ₱${dailyTotal}</strong></div>`;
@@ -483,28 +279,7 @@ function renderSales() {
   div.innerHTML += `<h2>💰 Grand Total: ₱${grandTotal}</h2>`;
 }
 
-// init
-renderMenu();
-renderCart();
-renderSales();
-
-</script>
-
-</body>
-</html>oLocaleTimeString()} |
-        ₱${s.total}</p>
-      `;
-    });
-
-    html += `<strong>Daily Total: ₱${dailyTotal}</strong></div>`;
-
-    div.innerHTML += html;
-  }
-
-  div.innerHTML += `<h2>💰 Grand Total: ₱${grandTotal}</h2>`;
-}
-
-// init
+// INIT
 renderMenu();
 renderCart();
 renderSales();
