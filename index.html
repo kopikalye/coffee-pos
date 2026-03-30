@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Level 3 Coffee POS (Cloud Sync)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- FIREBASE -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+  <style>
+    body { font-family: Arial; margin:0; background:#f3f3f3; }
+    header { background:#3e2723; color:white; padding:15px; text-align:center; }
+    .container { display:flex; flex-wrap:wrap; }
+    .box { flex:1; min-width:300px; padding:10px; }
+    .card { background:white; padding:15px; border-radius:10px; margin-bottom:10px; }
+    button { padding:10px; border:none; border-radius:5px; background:#3e2723; color:white; cursor:pointer; }
+    input { padding:8px; width:90%; margin-bottom:5px; }
+    .hidden { display:none; }
+  </style>
+</head>
+<body>
+
+<header>☕ Cloud Sync POS</header>
+
+<div id="loginBox" class="card" style="max-width:300px;margin:20px auto;">
+  <h3>Login</h3>
+  <input id="username" placeholder="Username"><br>
+  <input id="password" type="password" placeholder="Password"><br>
+  <button onclick="login()">Login</button>
+</div>
+
+<div id="app" class="hidden">
+<div class="container">
+
+  <div class="box">
+    <div class="card">
+      <h3>Menu</h3>
+      <div id="menu"></div>
+
+      <h4>Add Item</h4>
+      <input id="name" placeholder="Name"><br>
+      <input id="price" type="number" placeholder="Price"><br>
+      <input id="stock" type="number" placeholder="Stock"><br>
+      <button onclick="addItem()">Add</button>
+    </div>
+  </div>
+
+  <div class="box">
+    <div class="card">
+      <h3>Cart</h3>
+      <div id="cart"></div>
+      <p>Total: ₱<span id="total">0</span></p>
+      <button onclick="checkout()">Checkout</button>
+    </div>
+  </div>
+
+  <div class="box">
+    <div class="card">
+      <h3>Sales (Cloud)</h3>
+      <button onclick="loadSales()">Refresh</button>
+      <div id="sales"></div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<script>
+
+// 🔥 IMPORTANT: REPLACE WITH YOUR REAL FIREBASE CONFIG
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// Enable offline cache (prevents crash if offline)
+db.enablePersistence().catch(()=>{});
+
+let menu = [];
+let cart = [];
+
+function login(){
+  let u = document.getElementById('username').value;
+  let p = document.getElementById('password').value;
+
+  if(u==='admin' && p==='1234'){
+    document.getElementById('loginBox').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    loadMenu();
+  } else {
+    alert('Wrong login');
+  }
+}
+
+// MENU (SYNCED)
+async function loadMenu(){
+  try{
+    const snapshot = await db.collection('menu').get();
+    menu = [];
+    snapshot.forEach(doc => menu.push({...doc.data(), id:doc.id}));
+    renderMenu();
+  } catch(e){
+    alert('❌ Firestore error: Check your Firebase config & rules');
+    console.error(e);
+  }
+}
+
+async function addItem(){
+  let name = document.getElementById('name').value;
+  let price = document.getElementById('price').value;
+  let stock = document.getElementById('stock').value;
+
+  if(name && price && stock){
+    try{
+      await db.collection('menu').add({
+        name, price:parseFloat(price), stock:parseInt(stock)
+      });
+      loadMenu();
+    } catch(e){ console.error(e); }
+  }
+}
+
+async function deleteItem(i){
+  try{
+    await db.collection('menu').doc(menu[i].id).delete();
+    loadMenu();
+  } catch(e){ console.error(e); }
+}
+
+function renderMenu(){
+  let html='';
+  menu.forEach((m,i)=>{
+    html += `${m.name} ₱${m.price} (Stock:${m.stock})<br>
+    <button onclick="addToCart(${i})">Add</button>
+    <button onclick="deleteItem(${i})">Delete</button><hr>`;
+  });
+  document.getElementById('menu').innerHTML = html;
+}
+
+// CART
+function addToCart(i){
+  if(menu[i].stock <= 0) return alert('Out of stock');
+  cart.push(menu[i]);
+  menu[i].stock--;
+  updateStock(menu[i]);
+  renderCart();
+}
+
+async function updateStock(item){
+  try{
+    await db.collection('menu').doc(item.id).update({ stock:item.stock });
+  } catch(e){ console.error(e); }
+}
+
+function renderCart(){
+  let html=''; let total=0;
+  cart.forEach(c=>{
+    html += `${c.name} ₱${c.price}<br>`;
+    total+=c.price;
+  });
+  document.getElementById('cart').innerHTML = html;
+  document.getElementById('total').innerText = total;
+}
+
+// SALES SYNC
+async function checkout(){
+  if(cart.length===0) return alert('Empty');
+
+  let total = cart.reduce((s,i)=>s+i.price,0);
+
+  try{
+    await db.collection('sales').add({
+      items:cart,
+      total,
+      date:new Date().toLocaleString()
+    });
+
+    cart=[];
+    renderCart();
+    loadSales();
+  } catch(e){ console.error(e); }
+}
+
+async function loadSales(){
+  try{
+    const snapshot = await db.collection('sales').orderBy('date','desc').get();
+    let html='';
+
+    snapshot.forEach(doc=>{
+      let s = doc.data();
+      html += `${s.date}<br>Total: ₱${s.total}<hr>`;
+    });
+
+    document.getElementById('sales').innerHTML = html;
+  } catch(e){ console.error(e); }
+}
+
+</script>
+
+</body>
+</html>
