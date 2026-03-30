@@ -1,138 +1,130 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Coffee POS</title>
-  <style>
-    body { font-family: Arial; display: flex; gap: 20px; padding: 20px; }
-    .box { border: 1px solid #ccc; padding: 15px; width: 300px; }
-    button { margin: 5px; padding: 8px; cursor: pointer; }
-  </style>
+  <title>Coffee Shop POS</title>
 </head>
 <body>
 
-<div class="box">
-  <h3>Menu</h3>
-  <div id="menu"></div>
-  <input id="name" placeholder="Item name"><br>
-  <input id="price" placeholder="Price" type="number"><br>
-  <button onclick="addItem()">Add Item</button>
-</div>
+<h2>☕ Coffee Shop POS</h2>
 
-<div class="box">
-  <h3>Cart</h3>
-  <div id="cart"></div>
-  <h4>Total: ₱<span id="total">0</span></h4>
+<!-- INPUT -->
+<input type="text" id="itemName" placeholder="Item name">
+<input type="number" id="itemPrice" placeholder="Price">
+<button onclick="addToCart()">Add to Cart</button>
 
-  <input id="cash" placeholder="Cash" type="number"><br>
-  <button onclick="checkout()">Pay</button>
+<h3>🛒 Cart</h3>
+<ul id="cartList"></ul>
 
-  <h4>Change: ₱<span id="change">0</span></h4>
-</div>
+<h3>Total: ₱<span id="total">0</span></h3>
 
-<div class="box">
-  <h3>Daily Sales</h3>
-  <div id="sales"></div>
-</div>
+<input type="number" id="payment" placeholder="Payment">
+<button onclick="calculateChange()">Calculate Change</button>
+
+<h3>Change: ₱<span id="change">0</span></h3>
+
+<button onclick="saveSale()">💾 Save Daily Sale</button>
+
+<hr>
+
+<h2>📊 Daily Sales</h2>
+<ul id="salesList"></ul>
 
 <script>
-let menu = JSON.parse(localStorage.getItem('menu') || '[]');
 let cart = [];
-let sales = JSON.parse(localStorage.getItem('sales') || '[]');
+let total = 0;
 
-function saveData(){
-  localStorage.setItem('menu', JSON.stringify(menu));
-  localStorage.setItem('sales', JSON.stringify(sales));
-}
+// LOAD SALES FROM STORAGE
+let sales = JSON.parse(localStorage.getItem("sales")) || [];
 
-function renderMenu(){
-  let html = '';
-  menu.forEach((m, i)=>{
-    html += `${m.name} - ₱${m.price}
-      <button onclick="addToCart(${i})">Add</button>
-      <button onclick="deleteMenu(${i})">X</button><br>`;
-  });
-  document.getElementById('menu').innerHTML = html;
-}
+// ADD TO CART
+function addToCart() {
+  const name = document.getElementById("itemName").value;
+  const price = parseFloat(document.getElementById("itemPrice").value);
 
-function addItem(){
-  let name = document.getElementById('name').value;
-  let price = parseFloat(document.getElementById('price').value);
-  menu.push({name, price});
-  saveData();
-  renderMenu();
-}
+  if (!name || !price) return;
 
-function deleteMenu(i){
-  menu.splice(i,1);
-  saveData();
-  renderMenu();
-}
+  cart.push({ name, price });
+  total += price;
 
-function addToCart(i){
-  let item = menu[i];
-  cart.push(item);
   renderCart();
 }
 
-function renderCart(){
-  let html = '';
-  let total = 0;
-  cart.forEach((c, i)=>{
-    total += c.price;
-    html += `${c.name} - ₱${c.price}
-      <button onclick="removeCart(${i})">X</button><br>`;
+// DISPLAY CART
+function renderCart() {
+  let list = document.getElementById("cartList");
+  list.innerHTML = "";
+
+  cart.forEach((item, i) => {
+    list.innerHTML += `
+      <li>
+        ${item.name} - ₱${item.price}
+        <button onclick="removeItem(${i})">Delete</button>
+      </li>
+    `;
   });
-  document.getElementById('cart').innerHTML = html;
-  document.getElementById('total').innerText = total;
+
+  document.getElementById("total").innerText = total;
 }
 
-function removeCart(i){
-  cart.splice(i,1);
+// REMOVE ITEM
+function removeItem(i) {
+  total -= cart[i].price;
+  cart.splice(i, 1);
   renderCart();
 }
 
-function checkout(){
-  let total = cart.reduce((sum, i)=>sum + i.price, 0);
-  let cash = parseFloat(document.getElementById('cash').value);
-  let change = cash - total;
+// CALCULATE CHANGE
+function calculateChange() {
+  let payment = parseFloat(document.getElementById("payment").value);
+  let change = payment - total;
+  document.getElementById("change").innerText = change;
+}
 
-  if(change < 0){
-    alert("Not enough cash!");
-    return;
-  }
+// SAVE SALE
+function saveSale() {
+  if (cart.length === 0) return;
 
-  document.getElementById('change').innerText = change;
-
-  // Save sale
   let sale = {
-    items: [...cart],
+    items: cart,
     total: total,
     date: new Date().toLocaleString()
   };
 
   sales.push(sale);
-  saveData();
+  localStorage.setItem("sales", JSON.stringify(sales));
+
+  alert("Sale saved!");
+
   cart = [];
+  total = 0;
+
   renderCart();
   renderSales();
 }
 
-function renderSales(){
-  let html = '';
-  sales.forEach((s, i)=>{
-    html += `₱${s.total} - ${s.date}
-      <button onclick="deleteSale(${i})">Delete</button><br>`;
+// LOAD SALES
+function renderSales() {
+  let list = document.getElementById("salesList");
+  list.innerHTML = "";
+
+  sales.forEach((sale, i) => {
+    list.innerHTML += `
+      <li>
+        ₱${sale.total} - ${sale.date}
+        <button onclick="deleteSale(${i})">Delete</button>
+      </li>
+    `;
   });
-  document.getElementById('sales').innerHTML = html;
 }
 
-function deleteSale(i){
-  sales.splice(i,1);
-  saveData();
+// DELETE SALE
+function deleteSale(i) {
+  sales.splice(i, 1);
+  localStorage.setItem("sales", JSON.stringify(sales));
   renderSales();
 }
 
-renderMenu();
+// INITIAL LOAD
 renderSales();
 </script>
 
