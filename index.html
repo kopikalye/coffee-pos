@@ -1,42 +1,140 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Coffee POS</title>
-    <script>
-        // Function to format numbers
-        function formatNumber(num) {
-            return num.toLocaleString();
-        }
-
-        // Simulated database integration
-        const salesData = [
-            { date: '2026-03-29', sales: 150, transactions: 25 },
-            { date: '2026-03-30', sales: 200, transactions: 30 }
-        ];
-
-        function displayStats() {
-            let totalSales = 0;
-            let totalTransactions = 0;
-
-            salesData.forEach(record => {
-                totalSales += record.sales;
-                totalTransactions += record.transactions;
-            });
-
-            document.getElementById('total-sales').innerText = 'Total Sales: $' + formatNumber(totalSales);
-            document.getElementById('transaction-count').innerText = 'Total Transactions: ' + formatNumber(totalTransactions);
-        }
-
-        window.onload = displayStats;
-    </script>
+  <title>Coffee POS</title>
+  <style>
+    body { font-family: Arial; display: flex; gap: 20px; padding: 20px; }
+    .box { border: 1px solid #ccc; padding: 15px; width: 300px; }
+    button { margin: 5px; padding: 8px; cursor: pointer; }
+  </style>
 </head>
 <body>
-    <h1>Welcome to Coffee POS</h1>
-    <div id="stats">
-        <p id="total-sales"></p>
-        <p id="transaction-count"></p>
-    </div>
+
+<div class="box">
+  <h3>Menu</h3>
+  <div id="menu"></div>
+  <input id="name" placeholder="Item name"><br>
+  <input id="price" placeholder="Price" type="number"><br>
+  <button onclick="addItem()">Add Item</button>
+</div>
+
+<div class="box">
+  <h3>Cart</h3>
+  <div id="cart"></div>
+  <h4>Total: ₱<span id="total">0</span></h4>
+
+  <input id="cash" placeholder="Cash" type="number"><br>
+  <button onclick="checkout()">Pay</button>
+
+  <h4>Change: ₱<span id="change">0</span></h4>
+</div>
+
+<div class="box">
+  <h3>Daily Sales</h3>
+  <div id="sales"></div>
+</div>
+
+<script>
+let menu = JSON.parse(localStorage.getItem('menu') || '[]');
+let cart = [];
+let sales = JSON.parse(localStorage.getItem('sales') || '[]');
+
+function saveData(){
+  localStorage.setItem('menu', JSON.stringify(menu));
+  localStorage.setItem('sales', JSON.stringify(sales));
+}
+
+function renderMenu(){
+  let html = '';
+  menu.forEach((m, i)=>{
+    html += `${m.name} - ₱${m.price}
+      <button onclick="addToCart(${i})">Add</button>
+      <button onclick="deleteMenu(${i})">X</button><br>`;
+  });
+  document.getElementById('menu').innerHTML = html;
+}
+
+function addItem(){
+  let name = document.getElementById('name').value;
+  let price = parseFloat(document.getElementById('price').value);
+  menu.push({name, price});
+  saveData();
+  renderMenu();
+}
+
+function deleteMenu(i){
+  menu.splice(i,1);
+  saveData();
+  renderMenu();
+}
+
+function addToCart(i){
+  let item = menu[i];
+  cart.push(item);
+  renderCart();
+}
+
+function renderCart(){
+  let html = '';
+  let total = 0;
+  cart.forEach((c, i)=>{
+    total += c.price;
+    html += `${c.name} - ₱${c.price}
+      <button onclick="removeCart(${i})">X</button><br>`;
+  });
+  document.getElementById('cart').innerHTML = html;
+  document.getElementById('total').innerText = total;
+}
+
+function removeCart(i){
+  cart.splice(i,1);
+  renderCart();
+}
+
+function checkout(){
+  let total = cart.reduce((sum, i)=>sum + i.price, 0);
+  let cash = parseFloat(document.getElementById('cash').value);
+  let change = cash - total;
+
+  if(change < 0){
+    alert("Not enough cash!");
+    return;
+  }
+
+  document.getElementById('change').innerText = change;
+
+  // Save sale
+  let sale = {
+    items: [...cart],
+    total: total,
+    date: new Date().toLocaleString()
+  };
+
+  sales.push(sale);
+  saveData();
+  cart = [];
+  renderCart();
+  renderSales();
+}
+
+function renderSales(){
+  let html = '';
+  sales.forEach((s, i)=>{
+    html += `₱${s.total} - ${s.date}
+      <button onclick="deleteSale(${i})">Delete</button><br>`;
+  });
+  document.getElementById('sales').innerHTML = html;
+}
+
+function deleteSale(i){
+  sales.splice(i,1);
+  saveData();
+  renderSales();
+}
+
+renderMenu();
+renderSales();
+</script>
+
 </body>
 </html>
