@@ -50,8 +50,8 @@ function renderCart() {
   let list = document.getElementById("cartList");
   list.innerHTML = "";
 
-  cart.forEach((item, i) => {
-    list.innerHTML += `<li>${item.name} - ₱${item.price}</li>`;
+  cart.forEach(item => {
+    list.innerHTML += <li>${item.name} - ₱${item.price}</li>;
   });
 
   document.getElementById("total").innerText = total;
@@ -69,7 +69,7 @@ function saveSale() {
   if (!sales[date]) sales[date] = [];
 
   sales[date].push({
-    items: cart,
+    items: [...cart],
     total: total,
     time: new Date().toLocaleTimeString()
   });
@@ -83,17 +83,71 @@ function saveSale() {
   renderSales();
 }
 
+function deleteSale(date, index) {
+  sales[date].splice(index, 1);
+
+  if (sales[date].length === 0) {
+    delete sales[date];
+  }
+
+  localStorage.setItem("sales", JSON.stringify(sales));
+  renderSales();
+}
+
 function renderSales() {
   let list = document.getElementById("salesList");
   list.innerHTML = "";
 
   Object.keys(sales).forEach(date => {
-    list.innerHTML += `<h3>${date}</h3>`;
+    let dailyTotal = 0;
+    let itemsHTML = "";
 
-    sales[date].forEach((s, i) => {
-      list.innerHTML += `<li>₱${s.total} - ${s.time}</li>`;
+    sales[date].forEach((sale, i) => {
+      dailyTotal += sale.total;
+
+      let itemList = "";
+      sale.items.forEach(item => {
+        itemList += <li>${item.name} - ₱${item.price}</li>;
+      });
+
+      itemsHTML += `
+        <li style="margin-bottom:10px;">
+          <b>₱${sale.total}</b> - ${sale.time}
+
+          <ul style="margin-top:5px;">
+            ${itemList}
+          </ul>
+
+          <button onclick="deleteSale('${date}', ${i})" style="margin-top:5px;">
+            ❌ Delete
+          </button>
+        </li>
+      `;
     });
+
+    list.innerHTML += `
+      <div style="margin-bottom:10px; border:1px solid #ccc; padding:10px;">
+        
+        <h3 onclick="toggle('${date}')" style="cursor:pointer;">
+          📅 ${date} ▼
+        </h3>
+
+        <div id="content-${date}" style="display:none;">
+          <ul>
+            ${itemsHTML}
+          </ul>
+
+          <b>Total: ₱${dailyTotal}</b>
+        </div>
+
+      </div>
+    `;
   });
+}
+
+function toggle(date) {
+  let content = document.getElementById("content-" + date);
+  content.style.display = content.style.display === "none" ? "block" : "none";
 }
 
 renderSales();
