@@ -1,45 +1,42 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Coffee Shop POS</title>
+  <title>Coffee POS</title>
 </head>
 <body>
 
 <h2>☕ Coffee Shop POS</h2>
 
-<!-- INPUT -->
-<input type="text" id="itemName" placeholder="Item name">
-<input type="number" id="itemPrice" placeholder="Price">
-<button onclick="addToCart()">Add to Cart</button>
+<input id="itemName" placeholder="Item name">
+<input id="itemPrice" type="number" placeholder="Price">
+<button onclick="addToCart()">Add</button>
 
-<h3>🛒 Cart</h3>
+<h3>Cart</h3>
 <ul id="cartList"></ul>
 
 <h3>Total: ₱<span id="total">0</span></h3>
 
-<input type="number" id="payment" placeholder="Payment">
-<button onclick="calculateChange()">Calculate Change</button>
+<input id="payment" type="number" placeholder="Payment">
+<button onclick="calculateChange()">Change</button>
 
 <h3>Change: ₱<span id="change">0</span></h3>
 
-<button onclick="saveSale()">💾 Save Daily Sale</button>
+<button onclick="saveSale()">💾 Save Sale</button>
 
 <hr>
 
-<h2>📊 Daily Sales</h2>
+<h2>📊 Sales</h2>
 <ul id="salesList"></ul>
 
 <script>
 let cart = [];
 let total = 0;
 
-// LOAD SALES FROM STORAGE
-let sales = JSON.parse(localStorage.getItem("sales")) || [];
+let sales = JSON.parse(localStorage.getItem("sales")) || {};
 
-// ADD TO CART
 function addToCart() {
-  const name = document.getElementById("itemName").value;
-  const price = parseFloat(document.getElementById("itemPrice").value);
+  let name = document.getElementById("itemName").value;
+  let price = parseFloat(document.getElementById("itemPrice").value);
 
   if (!name || !price) return;
 
@@ -49,51 +46,35 @@ function addToCart() {
   renderCart();
 }
 
-// DISPLAY CART
 function renderCart() {
   let list = document.getElementById("cartList");
   list.innerHTML = "";
 
   cart.forEach((item, i) => {
-    list.innerHTML += `
-      <li>
-        ${item.name} - ₱${item.price}
-        <button onclick="removeItem(${i})">Delete</button>
-      </li>
-    `;
+    list.innerHTML += `<li>${item.name} - ₱${item.price}</li>`;
   });
 
   document.getElementById("total").innerText = total;
 }
 
-// REMOVE ITEM
-function removeItem(i) {
-  total -= cart[i].price;
-  cart.splice(i, 1);
-  renderCart();
-}
-
-// CALCULATE CHANGE
 function calculateChange() {
   let payment = parseFloat(document.getElementById("payment").value);
   let change = payment - total;
   document.getElementById("change").innerText = change;
 }
 
-// SAVE SALE
 function saveSale() {
-  if (cart.length === 0) return;
+  let date = new Date().toLocaleDateString();
 
-  let sale = {
+  if (!sales[date]) sales[date] = [];
+
+  sales[date].push({
     items: cart,
     total: total,
-    date: new Date().toLocaleString()
-  };
+    time: new Date().toLocaleTimeString()
+  });
 
-  sales.push(sale);
   localStorage.setItem("sales", JSON.stringify(sales));
-
-  alert("Sale saved!");
 
   cart = [];
   total = 0;
@@ -102,29 +83,19 @@ function saveSale() {
   renderSales();
 }
 
-// LOAD SALES
 function renderSales() {
   let list = document.getElementById("salesList");
   list.innerHTML = "";
 
-  sales.forEach((sale, i) => {
-    list.innerHTML += `
-      <li>
-        ₱${sale.total} - ${sale.date}
-        <button onclick="deleteSale(${i})">Delete</button>
-      </li>
-    `;
+  Object.keys(sales).forEach(date => {
+    list.innerHTML += `<h3>${date}</h3>`;
+
+    sales[date].forEach((s, i) => {
+      list.innerHTML += `<li>₱${s.total} - ${s.time}</li>`;
+    });
   });
 }
 
-// DELETE SALE
-function deleteSale(i) {
-  sales.splice(i, 1);
-  localStorage.setItem("sales", JSON.stringify(sales));
-  renderSales();
-}
-
-// INITIAL LOAD
 renderSales();
 </script>
 
