@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Coffee POS</title>
+  <title>Coffee POS System</title>
   <style>
     body { font-family: Arial; display: flex; gap: 20px; padding: 20px; }
     .box { border: 1px solid #ccc; padding: 15px; width: 300px; }
-    button { margin: 5px; padding: 8px; cursor: pointer; }
+    button { margin: 5px; padding: 6px; cursor: pointer; }
   </style>
 </head>
 <body>
@@ -13,17 +13,19 @@
 <div class="box">
   <h3>Menu</h3>
   <div id="menu"></div>
+
   <input id="name" placeholder="Item name"><br>
-  <input id="price" placeholder="Price" type="number"><br>
+  <input id="price" type="number" placeholder="Price"><br>
   <button onclick="addItem()">Add Item</button>
 </div>
 
 <div class="box">
   <h3>Cart</h3>
   <div id="cart"></div>
+
   <h4>Total: ₱<span id="total">0</span></h4>
 
-  <input id="cash" placeholder="Cash" type="number"><br>
+  <input id="cash" type="number" placeholder="Cash"><br>
   <button onclick="checkout()">Pay</button>
 
   <h4>Change: ₱<span id="change">0</span></h4>
@@ -37,53 +39,47 @@
 <script>
 let menu = JSON.parse(localStorage.getItem('menu') || '[]');
 let cart = [];
-let sales = JSON.parse(localStorage.getItem('sales') || '[]');
+let sales = JSON.parse(localStorage.getItem('sales') || '{}');
 
-function saveData(){
+function saveAll(){
   localStorage.setItem('menu', JSON.stringify(menu));
   localStorage.setItem('sales', JSON.stringify(sales));
 }
 
-function renderMenu(){
-  let html = '';
-  menu.forEach((m, i)=>{
-    html += `${m.name} - ₱${m.price}
-      <button onclick="addToCart(${i})">Add</button>
-      <button onclick="deleteMenu(${i})">X</button><br>`;
-  });
-  document.getElementById('menu').innerHTML = html;
-}
-
+/* ================= MENU ================= */
 function addItem(){
   let name = document.getElementById('name').value;
   let price = parseFloat(document.getElementById('price').value);
+
+  if(!name || !price) return;
+
   menu.push({name, price});
-  saveData();
+  saveAll();
   renderMenu();
 }
 
 function deleteMenu(i){
   menu.splice(i,1);
-  saveData();
+  saveAll();
   renderMenu();
 }
 
-function addToCart(i){
-  let item = menu[i];
-  cart.push(item);
-  renderCart();
+function renderMenu(){
+  let html = '';
+  menu.forEach((m, i)=>{
+    html += `
+      ${m.name} - ₱${m.price}
+      <button onclick="addToCart(${i})">Add</button>
+      <button onclick="deleteMenu(${i})">X</button><br>
+    `;
+  });
+  document.getElementById('menu').innerHTML = html;
 }
 
-function renderCart(){
-  let html = '';
-  let total = 0;
-  cart.forEach((c, i)=>{
-    total += c.price;
-    html += `${c.name} - ₱${c.price}
-      <button onclick="removeCart(${i})">X</button><br>`;
-  });
-  document.getElementById('cart').innerHTML = html;
-  document.getElementById('total').innerText = total;
+/* ================= CART ================= */
+function addToCart(i){
+  cart.push(menu[i]);
+  renderCart();
 }
 
 function removeCart(i){
@@ -91,10 +87,32 @@ function removeCart(i){
   renderCart();
 }
 
+function renderCart(){
+  let html = '';
+  let total = 0;
+
+  cart.forEach((c, i)=>{
+    total += c.price;
+    html += `
+      ${c.name} - ₱${c.price}
+      <button onclick="removeCart(${i})">X</button><br>
+    `;
+  });
+
+  document.getElementById('cart').innerHTML = html;
+  document.getElementById('total').innerText = total;
+}
+
+/* ================= CHECKOUT ================= */
 function checkout(){
   let total = cart.reduce((sum, i)=>sum + i.price, 0);
   let cash = parseFloat(document.getElementById('cash').value);
   let change = cash - total;
+
+  if(isNaN(cash)){
+    alert("Enter cash!");
+    return;
+  }
 
   if(change < 0){
     alert("Not enough cash!");
@@ -103,35 +121,68 @@ function checkout(){
 
   document.getElementById('change').innerText = change;
 
-  // Save sale
-  let sale = {
+  let today = new Date().toISOString().split('T')[0];
+
+  if(!sales[today]){
+    sales[today] = {
+      transactions: [],
+      total: 0
+    };
+  }
+
+  // Add transaction
+  sales[today].transactions.push({
     items: [...cart],
     total: total,
-    date: new Date().toLocaleString()
-  };
+    time: new Date().toLocaleTimeString()
+  });
 
-  sales.push(sale);
-  saveData();
+  // Update daily total
+  sales[today].total += total;
+
+  saveAll();
+
   cart = [];
   renderCart();
   renderSales();
 }
 
+/* ================= SALES DISPLAY ================= */
 function renderSales(){
   let html = '';
-  sales.forEach((s, i)=>{
-    html += `₱${s.total} - ${s.date}
-      <button onclick="deleteSale(${i})">Delete</button><br>`;
-  });
+
+  for(let date in sales){
+    html += `<h4>${date}</h4>`;
+    html += `<b>Total Sales: ₱${sales[date].total}</b><br><br>`;
+
+    sales[date].transactions.forEach((s, i)=>{
+      html += `
+        ₱${s.total} - ${s.time}
+        <button onclick="deleteSale('${date}', ${i})">Delete</button><br>
+      `;
+    });
+
+    html += `<hr>`;
+  }
+
   document.getElementById('sales').innerHTML = html;
 }
 
-function deleteSale(i){
-  sales.splice(i,1);
-  saveData();
+function deleteSale(date, i){
+  let removed = sales[date].transactions.splice(i,1)[0];
+
+  // subtract from daily total
+  sales[date].total -= removed.total;
+
+  if(sales[date].transactions.length === 0){
+    delete sales[date];
+  }
+
+  saveAll();
   renderSales();
 }
 
+/* ================= INIT ================= */
 renderMenu();
 renderSales();
 </script>
