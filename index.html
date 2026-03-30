@@ -51,7 +51,7 @@ function renderCart() {
   list.innerHTML = "";
 
   cart.forEach((item, i) => {
-    list.innerHTML += <li>${item.name} - ₱${item.price}</li>;
+    list.innerHTML += `<li>${item.name} - ₱${item.price}</li>`;
   });
 
   document.getElementById("total").innerText = total;
@@ -109,7 +109,7 @@ function renderSales() {
       // ✅ SHOW ITEM NAMES
       let itemList = "";
       sale.items.forEach(item => {
-        itemList += <li>${item.name} - ₱${item.price}</li>;
+        itemList += `<li>${item.name} - ₱${item.price}</li>`;
       });
 
       itemsHTML += `
