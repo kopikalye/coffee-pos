@@ -1,204 +1,256 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Level 3 Coffee POS (Cloud Sync)</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="UTF-8">
+<title>Pro Coffee POS</title>
 
-  <!-- FIREBASE -->
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<style>
+  body { font-family: Arial; margin:0; background:#f4f4f4; }
+  header { background:#6f4e37; color:white; text-align:center; padding:15px; }
 
-  <style>
-    body { font-family: Arial; margin:0; background:#f3f3f3; }
-    header { background:#3e2723; color:white; padding:15px; text-align:center; }
-    .container { display:flex; flex-wrap:wrap; }
-    .box { flex:1; min-width:300px; padding:10px; }
-    .card { background:white; padding:15px; border-radius:10px; margin-bottom:10px; }
-    button { padding:10px; border:none; border-radius:5px; background:#3e2723; color:white; cursor:pointer; }
-    input { padding:8px; width:90%; margin-bottom:5px; }
-    .hidden { display:none; }
-  </style>
+  .container { display:flex; gap:20px; padding:20px; flex-wrap:wrap; }
+
+  .box {
+    background:white;
+    padding:15px;
+    border-radius:10px;
+    width:48%;
+    box-shadow:0 2px 5px rgba(0,0,0,0.1);
+  }
+
+  input {
+    width:100%;
+    padding:8px;
+    margin:5px 0;
+  }
+
+  button {
+    width:100%;
+    padding:8px;
+    border:none;
+    background:#6f4e37;
+    color:white;
+    cursor:pointer;
+    border-radius:5px;
+  }
+
+  button:hover { background:#4e342e; }
+
+  .item, .cart-item {
+    display:flex;
+    justify-content:space-between;
+    margin:5px 0;
+  }
+
+  .total, .change {
+    font-weight:bold;
+    margin-top:10px;
+  }
+
+  .sales-day {
+    margin-bottom:15px;
+    padding:10px;
+    border:1px solid #ddd;
+    border-radius:8px;
+  }
+</style>
 </head>
+
 <body>
 
-<header>☕ Cloud Sync POS</header>
+<header>
+  <h1>☕ Coffee Shop POS (Pro)</h1>
+</header>
 
-<div id="loginBox" class="card" style="max-width:300px;margin:20px auto;">
-  <h3>Login</h3>
-  <input id="username" placeholder="Username"><br>
-  <input id="password" type="password" placeholder="Password"><br>
-  <button onclick="login()">Login</button>
-</div>
-
-<div id="app" class="hidden">
 <div class="container">
 
+  <!-- MENU -->
   <div class="box">
-    <div class="card">
-      <h3>Menu</h3>
-      <div id="menu"></div>
+    <h2>Menu</h2>
 
-      <h4>Add Item</h4>
-      <input id="name" placeholder="Name"><br>
-      <input id="price" type="number" placeholder="Price"><br>
-      <input id="stock" type="number" placeholder="Stock"><br>
-      <button onclick="addItem()">Add</button>
-    </div>
+    <input id="itemName" placeholder="Item Name">
+    <input id="itemPrice" type="number" placeholder="Price">
+    <button onclick="addMenuItem()">Add Item</button>
+
+    <hr>
+    <div id="menu"></div>
   </div>
 
+  <!-- CART -->
   <div class="box">
-    <div class="card">
-      <h3>Cart</h3>
-      <div id="cart"></div>
-      <p>Total: ₱<span id="total">0</span></p>
-      <button onclick="checkout()">Checkout</button>
-    </div>
+    <h2>Cart</h2>
+    <div id="cart"></div>
+
+    <div class="total">Total: ₱<span id="total">0</span></div>
+
+    <input id="cash" type="number" placeholder="Enter Cash">
+    <button onclick="calculateChange()">Calculate Change</button>
+
+    <div class="change">Change: ₱<span id="change">0</span></div>
+
+    <button onclick="checkout()">Checkout</button>
   </div>
 
-  <div class="box">
-    <div class="card">
-      <h3>Sales (Cloud)</h3>
-      <button onclick="loadSales()">Refresh</button>
-      <div id="sales"></div>
-    </div>
+  <!-- SALES -->
+  <div class="box" style="width:100%;">
+    <h2>📊 Daily Sales</h2>
+    <button onclick="renderSales()">Refresh</button>
+    <div id="sales"></div>
   </div>
 
-</div>
 </div>
 
 <script>
 
-// 🔥 IMPORTANT: REPLACE WITH YOUR REAL FIREBASE CONFIG
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-};
+let menu = JSON.parse(localStorage.getItem("menu")) || [
+  { name: "Espresso", price: 80 },
+  { name: "Latte", price: 120 }
+];
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-
-// Enable offline cache (prevents crash if offline)
-db.enablePersistence().catch(()=>{});
-
-let menu = [];
 let cart = [];
 
-function login(){
-  let u = document.getElementById('username').value;
-  let p = document.getElementById('password').value;
-
-  if(u==='admin' && p==='1234'){
-    document.getElementById('loginBox').classList.add('hidden');
-    document.getElementById('app').classList.remove('hidden');
-    loadMenu();
-  } else {
-    alert('Wrong login');
-  }
+function saveMenu() {
+  localStorage.setItem("menu", JSON.stringify(menu));
 }
 
-// MENU (SYNCED)
-async function loadMenu(){
-  try{
-    const snapshot = await db.collection('menu').get();
-    menu = [];
-    snapshot.forEach(doc => menu.push({...doc.data(), id:doc.id}));
-    renderMenu();
-  } catch(e){
-    alert('❌ Firestore error: Check your Firebase config & rules');
-    console.error(e);
-  }
+function addMenuItem() {
+  let name = document.getElementById("itemName").value;
+  let price = parseFloat(document.getElementById("itemPrice").value);
+
+  if (!name || !price) return alert("Fill all fields");
+
+  menu.push({ name, price });
+  saveMenu();
+  renderMenu();
 }
 
-async function addItem(){
-  let name = document.getElementById('name').value;
-  let price = document.getElementById('price').value;
-  let stock = document.getElementById('stock').value;
+function renderMenu() {
+  let div = document.getElementById("menu");
+  div.innerHTML = "";
 
-  if(name && price && stock){
-    try{
-      await db.collection('menu').add({
-        name, price:parseFloat(price), stock:parseInt(stock)
-      });
-      loadMenu();
-    } catch(e){ console.error(e); }
-  }
-}
-
-async function deleteItem(i){
-  try{
-    await db.collection('menu').doc(menu[i].id).delete();
-    loadMenu();
-  } catch(e){ console.error(e); }
-}
-
-function renderMenu(){
-  let html='';
-  menu.forEach((m,i)=>{
-    html += `${m.name} ₱${m.price} (Stock:${m.stock})<br>
-    <button onclick="addToCart(${i})">Add</button>
-    <button onclick="deleteItem(${i})">Delete</button><hr>`;
+  menu.forEach((item, i) => {
+    div.innerHTML += `
+      <div class="item">
+        <span>${item.name} - ₱${item.price}</span>
+        <button onclick="addToCart(${i})">Add</button>
+      </div>
+    `;
   });
-  document.getElementById('menu').innerHTML = html;
 }
 
-// CART
-function addToCart(i){
-  if(menu[i].stock <= 0) return alert('Out of stock');
+function addToCart(i) {
   cart.push(menu[i]);
-  menu[i].stock--;
-  updateStock(menu[i]);
   renderCart();
 }
 
-async function updateStock(item){
-  try{
-    await db.collection('menu').doc(item.id).update({ stock:item.stock });
-  } catch(e){ console.error(e); }
-}
+function renderCart() {
+  let div = document.getElementById("cart");
+  div.innerHTML = "";
 
-function renderCart(){
-  let html=''; let total=0;
-  cart.forEach(c=>{
-    html += `${c.name} ₱${c.price}<br>`;
-    total+=c.price;
+  let total = 0;
+
+  cart.forEach(item => {
+    total += item.price;
+
+    div.innerHTML += `
+      <div class="cart-item">
+        <span>${item.name}</span>
+        <span>₱${item.price}</span>
+      </div>
+    `;
   });
-  document.getElementById('cart').innerHTML = html;
-  document.getElementById('total').innerText = total;
+
+  document.getElementById("total").innerText = total;
 }
 
-// SALES SYNC
-async function checkout(){
-  if(cart.length===0) return alert('Empty');
+function calculateChange() {
+  let total = cart.reduce((s, i) => s + i.price, 0);
+  let cash = parseFloat(document.getElementById("cash").value);
 
-  let total = cart.reduce((s,i)=>s+i.price,0);
+  if (isNaN(cash) || cash < total) {
+    alert("Insufficient cash!");
+    return;
+  }
 
-  try{
-    await db.collection('sales').add({
-      items:cart,
-      total,
-      date:new Date().toLocaleString()
+  document.getElementById("change").innerText = cash - total;
+}
+
+function checkout() {
+  if (cart.length === 0) return alert("Cart is empty");
+
+  let total = cart.reduce((s, i) => s + i.price, 0);
+  let cash = parseFloat(document.getElementById("cash").value);
+
+  if (cash < total) return alert("Not enough cash");
+
+  let sales = JSON.parse(localStorage.getItem("sales")) || [];
+
+  sales.push({
+    date: new Date().toISOString(),
+    total: total,
+    cash: cash,
+    change: cash - total
+  });
+
+  localStorage.setItem("sales", JSON.stringify(sales));
+
+  alert("Order Complete!");
+
+  cart = [];
+  renderCart();
+  renderSales();
+}
+
+function renderSales() {
+  let sales = JSON.parse(localStorage.getItem("sales")) || [];
+  let div = document.getElementById("sales");
+
+  if (sales.length === 0) {
+    div.innerHTML = "<p>No sales yet</p>";
+    return;
+  }
+
+  let grouped = {};
+
+  sales.forEach(s => {
+    let date = new Date(s.date).toLocaleDateString();
+
+    if (!grouped[date]) grouped[date] = [];
+
+    grouped[date].push(s);
+  });
+
+  div.innerHTML = "";
+
+  let grandTotal = 0;
+
+  for (let date in grouped) {
+    let dailyTotal = 0;
+
+    let html = `<div class="sales-day"><h3>${date}</h3>`;
+
+    grouped[date].forEach(s => {
+      dailyTotal += s.total;
+      grandTotal += s.total;
+
+      html += `
+        <p>🕒 ${new Date(s.date).toLocaleTimeString()} |
+        ₱${s.total}</p>
+      `;
     });
 
-    cart=[];
-    renderCart();
-    loadSales();
-  } catch(e){ console.error(e); }
+    html += `<strong>Daily Total: ₱${dailyTotal}</strong></div>`;
+
+    div.innerHTML += html;
+  }
+
+  div.innerHTML += `<h2>💰 Grand Total: ₱${grandTotal}</h2>`;
 }
 
-async function loadSales(){
-  try{
-    const snapshot = await db.collection('sales').orderBy('date','desc').get();
-    let html='';
-
-    snapshot.forEach(doc=>{
-      let s = doc.data();
-      html += `${s.date}<br>Total: ₱${s.total}<hr>`;
-    });
-
-    document.getElementById('sales').innerHTML = html;
-  } catch(e){ console.error(e); }
-}
+// init
+renderMenu();
+renderCart();
+renderSales();
 
 </script>
 
