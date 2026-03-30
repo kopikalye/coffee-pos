@@ -33,42 +33,6 @@ let cart = [];
 let total = 0;
 
 let sales = JSON.parse(localStorage.getItem("sales")) || {};
-Nanay Derlie Boy 🤣❤️
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Coffee POS</title>
-</head>
-<body>
-
-<h2>☕ Coffee Shop POS</h2>
-
-<input id="itemName" placeholder="Item name">
-<input id="itemPrice" type="number" placeholder="Price">
-<button onclick="addToCart()">Add</button>
-
-<h3>Cart</h3>
-<ul id="cartList"></ul>
-
-<h3>Total: ₱<span id="total">0</span></h3>
-
-<input id="payment" type="number" placeholder="Payment">
-<button onclick="calculateChange()">Change</button>
-
-<h3>Change: ₱<span id="change">0</span></h3>
-
-<button onclick="saveSale()">💾 Save Sale</button>
-
-<hr>
-
-<h2>📊 Sales</h2>
-<ul id="salesList"></ul>
-
-<script>
-let cart = [];
-let total = 0;
-
-let sales = JSON.parse(localStorage.getItem("sales")) || {};
 
 function addToCart() {
   let name = document.getElementById("itemName").value;
